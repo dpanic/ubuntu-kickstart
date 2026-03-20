@@ -9,6 +9,8 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$REPO_DIR/scripts"
+LOG_DIR="$REPO_DIR/logs"
+mkdir -p "$LOG_DIR"
 
 # ─── Bootstrap gum ───────────────────────────────────────────────────────────
 
@@ -161,6 +163,8 @@ run_scripts() {
         local script_path="$SCRIPTS_DIR/$script"
         [[ ! -x "$script_path" ]] && chmod +x "$script_path"
 
+        local logfile="$LOG_DIR/${script%.sh}-$(date +%Y%m%d-%H%M%S).log"
+
         echo ""
         gum style --foreground "$ACCENT2" --bold "━━━ Running: $script ━━━"
         echo ""
@@ -177,11 +181,9 @@ run_scripts() {
                 results+=("$(gum style --foreground "$WARN_COLOR" "  ⊘ $script (skipped)")")
                 continue
             fi
-            sudo bash "$script_path" "$webhook" || rc=$?
-        elif [[ "$script" == gnome-optimize.sh || "$script" == nautilus-optimize.sh ]]; then
-            bash "$script_path" || rc=$?
+            sudo bash "$script_path" "$webhook" 2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
         else
-            sudo bash "$script_path" || rc=$?
+            bash "$script_path" 2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
         fi
 
         if [[ $rc -eq 0 ]]; then
@@ -195,10 +197,11 @@ run_scripts() {
 
     echo ""
     local summary
-    summary=$(printf "%s\n\n%s\n\n%s" \
+    summary=$(printf "%s\n\n%s\n\n%s\n\n%s" \
         "$(gum style --foreground "$ACCENT" --bold '  Results')" \
         "$(printf '%s\n' "${results[@]}")" \
-        "$(gum style --faint "  $ran succeeded, $failed failed")")
+        "$(gum style --faint "  $ran succeeded, $failed failed")" \
+        "$(gum style --faint "  Logs: $LOG_DIR/")")
 
     gum style \
         --border "$BORDER" \
