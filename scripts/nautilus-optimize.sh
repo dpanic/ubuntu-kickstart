@@ -6,6 +6,29 @@ set -euo pipefail
 # Restricts Tracker indexing, limits thumbnails, clears stale cache
 # Safe to re-run -- idempotent
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+parse_update_flag "$@"
+
+if [[ "$UNINSTALL" == true ]]; then
+    echo "=== Nautilus Optimization -- Revert ==="
+    echo ""
+    echo "[1/2] Restoring Tracker to index recursively from HOME..."
+    gsettings reset org.freedesktop.Tracker3.Miner.Files index-recursive-directories 2>/dev/null || true
+    systemctl --user restart tracker-miner-fs-3.service 2>/dev/null || true
+    echo "  done."
+
+    echo "[2/2] Restoring default thumbnail settings..."
+    gsettings reset org.gnome.nautilus.preferences show-image-thumbnails 2>/dev/null || true
+    dconf reset /org/gnome/nautilus/preferences/thumbnail-limit 2>/dev/null || true
+    gsettings reset org.gnome.nautilus.preferences search-filter-time-type 2>/dev/null || true
+    echo "  done."
+
+    echo ""
+    echo "=== Nautilus revert complete ==="
+    exit 0
+fi
+
 TRACKER_DIRS="['&DESKTOP', '&DOCUMENTS', '&MUSIC', '&PICTURES', '&VIDEOS']"
 THUMBNAIL_LIMIT=1048576  # 1MB
 

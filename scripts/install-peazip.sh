@@ -12,32 +12,47 @@ source "$SCRIPT_DIR/lib.sh"
 
 parse_update_flag "$@"
 
-echo "=== PeaZip Archiver ==="
+TITLE="Install"
+[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
+echo "=== PeaZip Archiver ($TITLE) ==="
 echo ""
+
+if [[ "$UNINSTALL" == true ]]; then
+    if is_macos; then
+        if [[ -d /Applications/PeaZip.app ]] || command -v peazip &>/dev/null; then
+            remove "removing PeaZip"
+            brew uninstall --cask peazip 2>/dev/null || true
+        else
+            skip "PeaZip not installed"
+        fi
+    elif is_linux; then
+        if dpkg -l peazip 2>/dev/null | grep -q '^ii'; then
+            remove "removing PeaZip"
+            sudo apt-get remove -y peazip 2>/dev/null || true
+        else
+            skip "PeaZip not installed"
+        fi
+    fi
+    echo ""
+    echo "=== PeaZip uninstall complete ==="
+    exit 0
+fi
 
 install_peazip_deb() {
     local label="$1"
     $label "fetching latest PeaZip GTK2 .deb from GitHub"
-    DEB_URL=$(curl -fsSL https://api.github.com/repos/peazip/PeaZip/releases/latest \
-        | grep '"browser_download_url"' \
-        | grep -i 'gtk2.*amd64\.deb\|amd64.*gtk2.*\.deb' \
-        | head -1 \
-        | cut -d'"' -f4)
 
-    if [[ -z "$DEB_URL" ]]; then
-        DEB_URL=$(curl -fsSL https://api.github.com/repos/peazip/PeaZip/releases/latest \
-            | grep '"browser_download_url"' \
-            | grep -i '\.deb' \
-            | grep -iv 'qt' \
-            | head -1 \
-            | cut -d'"' -f4)
-    fi
+    local PEAZIP_VER
+    PEAZIP_VER=$(curl -fsSI https://github.com/peazip/PeaZip/releases/latest 2>/dev/null \
+        | grep -i '^location:' | sed 's|.*/||' | tr -d '\r\n')
 
-    if [[ -z "$DEB_URL" ]]; then
-        echo "  ERROR: could not find PeaZip .deb in latest release"
+    if [[ -z "$PEAZIP_VER" ]]; then
+        echo "  ERROR: could not determine latest PeaZip version"
         echo "  Check: https://github.com/peazip/PeaZip/releases"
         exit 1
     fi
+
+    local DEB_URL="https://github.com/peazip/PeaZip/releases/download/${PEAZIP_VER}/peazip_${PEAZIP_VER}.LINUX.GTK2-1_amd64.deb"
 
     TMP_DEB=$(mktemp /tmp/peazip-XXXXXX.deb)
     echo "  downloading: $DEB_URL"

@@ -91,7 +91,11 @@ ALL_ITEMS=(
     "linux|gnome-optimize.sh||GNOME Optimize -- disable animations, sounds, hot corners"
     "linux|nautilus-optimize.sh||Nautilus Optimize -- restrict Tracker, limit thumbnails"
     "linux|apparmor-setup.sh||AppArmor Setup -- learning mode with Slack reminder"
-    "linux|kernel-optimize.sh||Kernel Optimize -- sysctl, limits, sshd, scheduler tuning"
+    "linux|kernel-optimize.sh|sysctl|Kernel ▸ sysctl.conf (network, memory, conntrack tuning)"
+    "linux|kernel-optimize.sh|limits|Kernel ▸ file descriptor & process limits"
+    "linux|kernel-optimize.sh|sshd|Kernel ▸ sshd hardening (disables password auth)"
+    "linux|kernel-optimize.sh|scheduler|Kernel ▸ I/O scheduler (none -- SSD/NVMe)"
+    "linux|kernel-optimize.sh|autotune|Kernel ▸ RAM-based autotune service"
     # ── Installations ──
     "all|---||"
     "all|---||── Installations ─────────────────────────────"
@@ -124,7 +128,14 @@ check_installed() {
         gnome-optimize.sh|nautilus-optimize.sh|apparmor-setup.sh)
             return 1 ;;
         kernel-optimize.sh)
-            [[ -f /etc/sysctl.conf ]] && grep -q "tcp_congestion_control = bbr" /etc/sysctl.conf 2>/dev/null ;;
+            case "$component" in
+                sysctl)    [[ -f /etc/sysctl.conf ]] && grep -q "tcp_congestion_control = bbr" /etc/sysctl.conf 2>/dev/null ;;
+                limits)    [[ -f /etc/security/limits.conf ]] && grep -q "KICKSTART" /etc/security/limits.conf 2>/dev/null ;;
+                sshd)      [[ -f /etc/ssh/sshd_config ]] && grep -q "KICKSTART" /etc/ssh/sshd_config 2>/dev/null ;;
+                scheduler) [[ -f /etc/udev/rules.d/60-scheduler.rules ]] ;;
+                autotune)  [[ -f /usr/bin/autotune.sh ]] && systemctl is-enabled autotune.service &>/dev/null ;;
+                *)         return 1 ;;
+            esac ;;
         install-shell-tools.sh)
             case "$component" in
                 zsh)     [[ -d "$HOME/.oh-my-zsh" ]] && command -v zsh &>/dev/null ;;
@@ -191,8 +202,8 @@ _git_update_check() {
 _gh_release_check() {
     local current="$1" repo="$2"
     local latest
-    latest=$(curl -fsSL -m 5 "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null \
-        | grep '"tag_name"' | head -1 | cut -d'"' -f4 | sed 's/^v//')
+    latest=$(curl -fsSI -m 5 "https://github.com/$repo/releases/latest" 2>/dev/null \
+        | grep -i '^location:' | sed 's|.*/v\?||' | tr -d '\r\n')
     [[ -z "$latest" || -z "$current" ]] && return
     [[ "$current" != "$latest" ]] && echo "update" || echo "latest"
 }
@@ -446,20 +457,24 @@ run_scripts() {
 
         local rc=0
         if [[ "$script" == "apparmor-setup.sh" ]]; then
-            local webhook
-            webhook=$(gum input \
-                --prompt "Slack webhook URL: " \
-                --placeholder "https://hooks.slack.com/services/T.../B.../xxx" \
-                --prompt.foreground "$ACCENT" < /dev/tty) || true
-            if [[ -z "$webhook" ]]; then
-                echo "  Skipped (no webhook URL provided)"
-                results+=("$(gum style --foreground "$WARN_COLOR" "  ⊘ $script (skipped)")")
-                continue
+            if [[ "$ACTION_FLAG" == "--uninstall" ]]; then
+                sudo bash "$script_path" --uninstall 2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
+            else
+                local webhook
+                webhook=$(gum input \
+                    --prompt "Slack webhook URL: " \
+                    --placeholder "https://hooks.slack.com/services/T.../B.../xxx" \
+                    --prompt.foreground "$ACCENT" < /dev/tty) || true
+                if [[ -z "$webhook" ]]; then
+                    echo "  Skipped (no webhook URL provided)"
+                    results+=("$(gum style --foreground "$WARN_COLOR" "  ⊘ $script (skipped)")")
+                    continue
+                fi
+                sudo bash "$script_path" "$webhook" 2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
             fi
-            sudo bash "$script_path" "$webhook" 2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
         else
             # shellcheck disable=SC2086
-            bash "$script_path" $components $UPDATE_FLAG 2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
+            bash "$script_path" $components $ACTION_FLAG 2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
         fi
 
         if [[ $rc -eq 0 ]]; then
@@ -473,7 +488,8 @@ run_scripts() {
 
     echo ""
     local mode_label="Install"
-    [[ -n "$UPDATE_FLAG" ]] && mode_label="Update"
+    [[ "$ACTION_FLAG" == "--update" ]] && mode_label="Update"
+    [[ "$ACTION_FLAG" == "--uninstall" ]] && mode_label="Uninstall"
 
     local summary
     summary=$(printf "%s\n\n%s\n\n%s\n\n%s" \
@@ -494,24 +510,24 @@ run_scripts() {
 
 main() {
     clear
-    show_banner
-
-    echo ""
     check_updates
-    echo ""
+    clear
+
+    local menu_height=$(( $(tput lines) - 9 ))
+    [[ "$menu_height" -lt 10 ]] && menu_height=10
 
     local chosen
     chosen=$(get_labels \
         | gum choose \
             --no-limit \
             --no-strip-ansi \
-            --height 30 \
+            --height "$menu_height" \
             --cursor-prefix "[▸] " \
             --selected-prefix "[✓] " \
             --unselected-prefix "[ ] " \
             --cursor.foreground "$ACCENT" \
             --selected.foreground "$ACCENT2" \
-            --header $'SPACE = toggle  ·  ENTER = confirm\n\n   ── Optimizations ─────────────────────────────' \
+            --header $'  🚀 Kickstart — by Dusan Panic\n\n  SPACE = toggle  ·  ENTER = confirm\n\n   ── Optimizations ─────────────────────────────' \
             --header.foreground "$ACCENT") || true
 
     if [[ -z "$chosen" ]]; then
@@ -530,19 +546,24 @@ main() {
         --cursor.foreground "$ACCENT" \
         --selected.foreground "$ACCENT2" \
         "Install (skip already installed)" \
-        "Update (refresh to latest versions)") || true
+        "Update (refresh to latest versions)" \
+        "Uninstall (remove / revert selected)") || true
 
     if [[ -z "$mode" ]]; then
         gum style --foreground "$WARN_COLOR" "  No mode selected. Exiting."
         exit 0
     fi
 
-    UPDATE_FLAG=""
+    ACTION_FLAG=""
     if [[ "$mode" == *Update* ]]; then
-        UPDATE_FLAG="--update"
+        ACTION_FLAG="--update"
+    elif [[ "$mode" == *Uninstall* ]]; then
+        ACTION_FLAG="--uninstall"
     fi
 
-    collect_user_info
+    if [[ "$ACTION_FLAG" != "--uninstall" ]]; then
+        collect_user_info
+    fi
 
     echo ""
     if gum confirm --prompt.foreground "$ACCENT" "Run $count script(s) in ${mode%% *} mode?"; then

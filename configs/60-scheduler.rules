@@ -1,0 +1,2 @@
+# KICKSTART -- disable I/O scheduler (optimal for SSD/NVMe) from dpanic/patchfiles
+ACTION=="add|change", KERNEL=="sd*[!0-9]|sr*|nvme*|mmcblk*", ATTR{queue/scheduler}="none"

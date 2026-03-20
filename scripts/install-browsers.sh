@@ -36,9 +36,50 @@ count_steps() {
 TOTAL=$(count_steps)
 next() { STEP=$((STEP + 1)); echo "[$STEP/$TOTAL] $1..."; }
 
-echo "=== Desktop Apps ==="
+TITLE="Setup"
+[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
+echo "=== Desktop Apps $TITLE ==="
 echo "  Components: ${COMPONENTS[*]}"
 echo ""
+
+if [[ "$UNINSTALL" == true ]]; then
+    if want "chrome"; then
+        echo "[REMOVE] Chrome..."
+        if command -v google-chrome &>/dev/null || command -v google-chrome-stable &>/dev/null; then
+            remove "removing Google Chrome"
+            if is_macos; then brew uninstall --cask google-chrome 2>/dev/null || true
+            elif is_linux; then sudo apt-get remove -y google-chrome-stable 2>/dev/null || true; fi
+        else
+            skip "Chrome not installed"
+        fi
+    fi
+
+    if want "brave"; then
+        echo "[REMOVE] Brave..."
+        if command -v brave-browser &>/dev/null; then
+            remove "removing Brave"
+            if is_macos; then brew uninstall --cask brave-browser 2>/dev/null || true
+            elif is_linux; then sudo apt-get remove -y brave-browser 2>/dev/null || true; fi
+        else
+            skip "Brave not installed"
+        fi
+    fi
+
+    if want "signal"; then
+        echo "[REMOVE] Signal..."
+        if command -v signal-desktop &>/dev/null; then
+            remove "removing Signal Desktop"
+            if is_macos; then brew uninstall --cask signal 2>/dev/null || true
+            elif is_linux; then sudo apt-get remove -y signal-desktop 2>/dev/null || true; fi
+        else
+            skip "Signal not installed"
+        fi
+    fi
+
+    echo ""
+    echo "=== Desktop apps uninstall complete ==="
+    exit 0
+fi
 
 # ── Google Chrome ─────────────────────────────────────────────────────────────
 if want "chrome"; then

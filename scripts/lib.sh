@@ -5,21 +5,27 @@
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 skip()    { echo -e "  ${GREEN}[SKIP]${NC} $1"; }
 install() { echo -e "  ${YELLOW}[INSTALL]${NC} $1"; }
 update()  { echo -e "  ${CYAN}[UPDATE]${NC} $1"; }
+remove()  { echo -e "  ${RED}[REMOVE]${NC} $1"; }
 
-# --update flag: when set, scripts update already-installed tools instead of skipping
+# Action flags: --update refreshes to latest, --uninstall removes
 UPDATE=false
+UNINSTALL=false
 _CLEAN_ARGS=()
 parse_update_flag() {
     UPDATE=false
+    UNINSTALL=false
     _CLEAN_ARGS=()
     for a in "$@"; do
         if [[ "$a" == "--update" ]]; then
             UPDATE=true
+        elif [[ "$a" == "--uninstall" ]]; then
+            UNINSTALL=true
         else
             _CLEAN_ARGS+=("$a")
         fi

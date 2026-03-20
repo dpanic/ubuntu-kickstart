@@ -13,8 +13,61 @@ NVIM_INSTALL_DIR="/opt/nvim-linux-x86_64"
 
 parse_update_flag "$@"
 
-echo "=== Neovim + LazyVim Setup ==="
+TITLE="Setup"
+[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
+echo "=== Neovim + LazyVim $TITLE ==="
 echo ""
+
+if [[ "$UNINSTALL" == true ]]; then
+    # neovim
+    if command -v nvim &>/dev/null; then
+        remove "removing neovim"
+        if is_macos; then
+            brew uninstall neovim 2>/dev/null || true
+        elif is_linux; then
+            sudo rm -rf "$NVIM_INSTALL_DIR" /usr/local/bin/nvim
+        fi
+    else
+        skip "neovim not installed"
+    fi
+
+    # lazygit
+    if command -v lazygit &>/dev/null; then
+        remove "removing lazygit"
+        if is_macos; then
+            brew uninstall lazygit 2>/dev/null || true
+        elif is_linux; then
+            sudo rm -f /usr/local/bin/lazygit
+        fi
+    else
+        skip "lazygit not installed"
+    fi
+
+    # ripgrep + fd
+    if is_linux; then
+        command -v rg &>/dev/null && { remove "removing ripgrep"; sudo apt-get remove -y ripgrep 2>/dev/null || true; }
+        (command -v fdfind &>/dev/null || command -v fd &>/dev/null) && { remove "removing fd-find"; sudo apt-get remove -y fd-find 2>/dev/null || true; }
+    elif is_macos; then
+        command -v rg &>/dev/null && { remove "removing ripgrep"; brew uninstall ripgrep 2>/dev/null || true; }
+        command -v fd &>/dev/null && { remove "removing fd"; brew uninstall fd 2>/dev/null || true; }
+    fi
+
+    # nvim config
+    if [[ -d "$HOME/.config/nvim" ]]; then
+        remove "removing ~/.config/nvim"
+        rm -rf "$HOME/.config/nvim"
+    fi
+
+    # nvim data
+    if [[ -d "$HOME/.local/share/nvim" ]]; then
+        remove "removing ~/.local/share/nvim"
+        rm -rf "$HOME/.local/share/nvim"
+    fi
+
+    echo ""
+    echo "=== Neovim uninstall complete ==="
+    exit 0
+fi
 
 # [1/4] Neovim via Homebrew (macOS) or GitHub release tarball (Linux x86_64)
 echo "[1/4] neovim..."
@@ -80,7 +133,8 @@ echo "[3/4] lazygit..."
 install_lazygit_linux() {
     local label="$1"
     $label "downloading latest lazygit from GitHub"
-    LAZYGIT_VERSION=$(curl -fsSL https://api.github.com/repos/jesseduffield/lazygit/releases/latest | grep '"tag_name"' | sed 's/.*"v\?\([^"]*\)".*/\1/')
+    LAZYGIT_VERSION=$(curl -fsSI https://github.com/jesseduffield/lazygit/releases/latest 2>/dev/null \
+        | grep -i '^location:' | sed 's|.*/v||' | tr -d '\r\n')
 
     if [[ -z "$LAZYGIT_VERSION" ]]; then
         echo "  ERROR: could not determine latest lazygit version"

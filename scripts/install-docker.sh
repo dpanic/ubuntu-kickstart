@@ -10,8 +10,32 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
-echo "=== Docker Setup ==="
+parse_update_flag "$@"
+
+TITLE="Setup"
+[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
+echo "=== Docker $TITLE ==="
 echo ""
+
+if [[ "$UNINSTALL" == true ]]; then
+    if command -v docker &>/dev/null; then
+        if is_macos; then
+            remove "removing Docker Desktop"
+            brew uninstall --cask docker 2>/dev/null || true
+        elif is_linux; then
+            remove "removing Docker packages"
+            sudo apt-get remove -y docker-ce docker-ce-cli containerd.io \
+                docker-buildx-plugin docker-compose-plugin 2>/dev/null || true
+            sudo rm -f /etc/docker/daemon.json
+            echo "  note: docker data in /var/lib/docker left intact (remove manually if needed)"
+        fi
+    else
+        skip "docker not installed"
+    fi
+    echo ""
+    echo "=== Docker uninstall complete ==="
+    exit 0
+fi
 
 if is_macos; then
     echo "[1/2] Docker Desktop..."

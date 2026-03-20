@@ -14,7 +14,8 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
 ALL_COMPONENTS=(byobu ncdu)
-COMPONENTS=("$@")
+parse_update_flag "$@"
+COMPONENTS=("${_CLEAN_ARGS[@]}")
 if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
     COMPONENTS=("${ALL_COMPONENTS[@]}")
 fi
@@ -34,9 +35,40 @@ count_steps() {
 TOTAL=$(count_steps)
 next() { STEP=$((STEP + 1)); echo "[$STEP/$TOTAL] $1..."; }
 
-echo "=== Terminal Tools Setup ==="
+TITLE="Setup"
+[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
+echo "=== Terminal Tools $TITLE ==="
 echo "  Components: ${COMPONENTS[*]}"
 echo ""
+
+# ── Uninstall mode ────────────────────────────────────────────────────────────
+if [[ "$UNINSTALL" == true ]]; then
+    if want "byobu"; then
+        echo "[REMOVE] byobu..."
+        if command -v byobu &>/dev/null; then
+            remove "removing byobu"
+            if is_linux; then sudo apt-get remove -y byobu 2>/dev/null || true; fi
+            [[ -d "$HOME/.byobu" ]] && { remove "removing ~/.byobu"; rm -rf "$HOME/.byobu"; }
+        else
+            skip "byobu not installed"
+        fi
+    fi
+
+    if want "ncdu"; then
+        echo "[REMOVE] ncdu..."
+        if command -v ncdu &>/dev/null; then
+            remove "removing ncdu"
+            if is_macos; then brew uninstall ncdu 2>/dev/null || true
+            else sudo apt-get remove -y ncdu 2>/dev/null || true; fi
+        else
+            skip "ncdu not installed"
+        fi
+    fi
+
+    echo ""
+    echo "=== Terminal tools uninstall complete ==="
+    exit 0
+fi
 
 # ── byobu + tmux ─────────────────────────────────────────────────────────────
 if want "byobu"; then

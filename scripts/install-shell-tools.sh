@@ -37,9 +37,92 @@ count_steps() {
 TOTAL=$(count_steps)
 next() { STEP=$((STEP + 1)); echo "[$STEP/$TOTAL] $1..."; }
 
-echo "=== Shell Tools Setup ==="
+TITLE="Setup"
+[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
+echo "=== Shell Tools $TITLE ==="
 echo "  Components: ${COMPONENTS[*]}"
 echo ""
+
+# ── Uninstall mode ────────────────────────────────────────────────────────────
+if [[ "$UNINSTALL" == true ]]; then
+    ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+
+    if want "plugins"; then
+        echo "[REMOVE] zsh plugins..."
+        [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]] && \
+            { remove "zsh-autosuggestions"; rm -rf "$ZSH_CUSTOM/plugins/zsh-autosuggestions"; } || skip "zsh-autosuggestions not found"
+        [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]] && \
+            { remove "zsh-syntax-highlighting"; rm -rf "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"; } || skip "zsh-syntax-highlighting not found"
+    fi
+
+    if want "nvm"; then
+        echo "[REMOVE] nvm..."
+        if [[ -d "$HOME/.nvm" ]]; then
+            remove "removing ~/.nvm"
+            rm -rf "$HOME/.nvm"
+        else
+            skip "nvm not installed"
+        fi
+    fi
+
+    if want "fzf"; then
+        echo "[REMOVE] fzf..."
+        if [[ -d "$HOME/.fzf" ]]; then
+            remove "uninstalling fzf"
+            "$HOME/.fzf/uninstall" --all 2>/dev/null || true
+            rm -rf "$HOME/.fzf"
+        else
+            skip "fzf not installed"
+        fi
+    fi
+
+    if want "starship"; then
+        echo "[REMOVE] starship..."
+        if command -v starship &>/dev/null; then
+            remove "removing starship binary"
+            sudo rm -f "$(command -v starship)"
+        else
+            skip "starship not installed"
+        fi
+    fi
+
+    if want "direnv"; then
+        echo "[REMOVE] direnv..."
+        if command -v direnv &>/dev/null; then
+            remove "removing direnv"
+            if is_macos; then brew uninstall direnv 2>/dev/null || true
+            else sudo apt-get remove -y direnv 2>/dev/null || true; fi
+        else
+            skip "direnv not installed"
+        fi
+    fi
+
+    if want "git"; then
+        echo "[REMOVE] git-lfs..."
+        if command -v git-lfs &>/dev/null; then
+            remove "removing git-lfs"
+            if is_macos; then brew uninstall git-lfs 2>/dev/null || true
+            else sudo apt-get remove -y git-lfs 2>/dev/null || true; fi
+        else
+            skip "git-lfs not installed"
+        fi
+    fi
+
+    if want "zsh"; then
+        echo "[REMOVE] oh-my-zsh..."
+        if [[ -d "$HOME/.oh-my-zsh" ]]; then
+            remove "removing ~/.oh-my-zsh"
+            rm -rf "$HOME/.oh-my-zsh"
+        else
+            skip "oh-my-zsh not installed"
+        fi
+        echo "  note: zsh package and default shell left intact"
+    fi
+
+    echo ""
+    echo "=== Shell tools uninstall complete ==="
+    exit 0
+fi
 
 # ── zsh + oh-my-zsh ──────────────────────────────────────────────────────────
 if want "zsh"; then
@@ -170,7 +253,8 @@ if want "nvm"; then
     if [[ -d "$HOME/.nvm" ]]; then
         if [[ "$UPDATE" == true ]]; then
             update "updating nvm to latest"
-            LATEST_NVM=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+            LATEST_NVM=$(curl -fsSI https://github.com/nvm-sh/nvm/releases/latest 2>/dev/null \
+                | grep -i '^location:' | sed 's|.*/||' | tr -d '\r\n')
             git -C "$HOME/.nvm" fetch origin --depth=1 --tags -q
             git -C "$HOME/.nvm" checkout "$LATEST_NVM" 2>/dev/null
         else
@@ -178,7 +262,8 @@ if want "nvm"; then
         fi
     else
         install "installing nvm"
-        LATEST_NVM=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+        LATEST_NVM=$(curl -fsSI https://github.com/nvm-sh/nvm/releases/latest 2>/dev/null \
+            | grep -i '^location:' | sed 's|.*/||' | tr -d '\r\n')
         curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${LATEST_NVM}/install.sh" | PROFILE=/dev/null bash
     fi
 fi

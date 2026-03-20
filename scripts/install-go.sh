@@ -13,8 +13,23 @@ parse_update_flag "$@"
 
 GO_INSTALL_DIR="/usr/local/go"
 
-echo "=== Go Programming Language ==="
+TITLE="Install"
+[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
+echo "=== Go Programming Language ($TITLE) ==="
 echo ""
+
+if [[ "$UNINSTALL" == true ]]; then
+    if [[ -d "$GO_INSTALL_DIR" ]]; then
+        remove "removing $GO_INSTALL_DIR"
+        sudo rm -rf "$GO_INSTALL_DIR"
+    else
+        skip "Go not installed at $GO_INSTALL_DIR"
+    fi
+    echo "  note: remove 'export PATH=\$PATH:/usr/local/go/bin' from your shell profile"
+    echo ""
+    echo "=== Go uninstall complete ==="
+    exit 0
+fi
 
 install_go() {
     local label="$1"

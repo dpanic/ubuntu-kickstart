@@ -32,7 +32,7 @@ bash main.sh
 ## ✨ Features
 
 - 🎛️ **Interactive TUI** — multi-select menu with real-time update checks
-- 🔄 **Install & Update modes** — fresh install or refresh to latest versions
+- 🔄 **Install · Update · Uninstall** — fresh install, refresh to latest, or clean removal
 - 📦 **Idempotent** — safe to re-run, skips what's already installed
 - 🐧🍎 **Cross-platform** — Ubuntu 24.04 + macOS (Linux-only items auto-hidden on Mac)
 - ⚡ **Parallel update checks** — checks GitHub/git for new versions in background
@@ -84,50 +84,25 @@ bash main.sh
 
 ---
 
-## 🔄 Update Mode
+## 🔄 Modes
 
-Every tool installed from Git or GitHub releases supports updating:
+After selecting items, choose a mode:
+
+| Mode | Description |
+|------|-------------|
+| **Install** | Fresh install, skips already-installed items |
+| **Update** | Refresh to latest versions (Git pull, re-download releases) |
+| **Uninstall** | Remove installed tools, revert optimizations from backups |
 
 ```bash
 bash main.sh
-# → Select items → Choose "Update (refresh to latest versions)"
+# → Select items → Choose mode → Confirm
 ```
 
 The TUI shows real-time status for each tool:
 - `[latest]` — already at newest version
 - **`[update available]`** — newer version detected
 - `[installed]` — installed, no update check available
-
----
-
-## 📁 File Structure
-
-```
-os-kickstart/
-├── main.sh                           # 🎛️  TUI launcher (gum)
-├── demo.tape                         # 📼  VHS recording script
-├── scripts/
-│   ├── lib.sh                        # 📚  Shared helpers (OS detect, update logic)
-│   ├── gnome-optimize.sh             # 🐧  GNOME desktop optimization
-│   ├── nautilus-optimize.sh          # 🐧  Nautilus / Tracker optimization
-│   ├── apparmor-setup.sh             # 🐧  AppArmor learning mode
-│   ├── kernel-optimize.sh            # ⚡  sysctl + limits + sshd + scheduler + autotune
-│   ├── install-shell-tools.sh        # 🐚  zsh + oh-my-zsh + fzf + starship + nvm
-│   ├── install-terminal-tools.sh     # 🖥️  byobu + tmux + ncdu
-│   ├── install-docker.sh             # 🐳  Docker Engine/Desktop
-│   ├── install-go.sh                 # 🔵  Go programming language
-│   ├── install-yazi.sh               # 📂  Yazi terminal file manager
-│   ├── install-neovim.sh             # ✏️  Neovim + LazyVim + deps
-│   ├── install-browsers.sh           # 🌐  Chrome, Brave, Signal
-│   └── install-peazip.sh             # 🐧  PeaZip archiver
-├── configs/
-│   ├── starship.toml                 # ⭐  Starship prompt config
-│   ├── zshrc.template                # 📝  Reference .zshrc
-│   ├── gitconfig.template            # 🔧  Git config template
-│   ├── docker-daemon.json            # 🐳  Docker daemon config
-│   └── byobu/                        # 🖥️  Byobu/tmux config
-└── README.md
-```
 
 ---
 
@@ -142,12 +117,13 @@ os-kickstart/
 
 ---
 
-## 🛡️ What Stays Untouched
+## 🛡️ Safety
 
-- 🚫 No packages are removed — only settings are changed
 - 📄 Existing `~/.zshrc` is never overwritten (instructions printed instead)
 - 💾 Existing `~/.config/nvim` is backed up before LazyVim clone
 - 🔒 Snap-related AppArmor profiles stay in enforce mode
+- 🗑️ **Uninstall** restores system configs from `.bak-kickstart` backups created during install
+- 🐳 Docker data (`/var/lib/docker`) is preserved on uninstall — remove manually if needed
 
 ---
 

@@ -11,22 +11,32 @@ source "$SCRIPT_DIR/lib.sh"
 
 parse_update_flag "$@"
 
-echo "=== Yazi Terminal File Manager ==="
+TITLE="Install"
+[[ "$UNINSTALL" == true ]] && TITLE="Uninstall"
+echo "=== Yazi Terminal File Manager ($TITLE) ==="
 echo ""
+
+if [[ "$UNINSTALL" == true ]]; then
+    if command -v yazi &>/dev/null; then
+        remove "removing yazi binary"
+        sudo rm -f /usr/local/bin/yazi /usr/local/bin/ya
+        if is_macos; then brew uninstall yazi 2>/dev/null || true; fi
+    else
+        skip "yazi not installed"
+    fi
+    if [[ -d "$HOME/.config/yazi" ]]; then
+        remove "removing ~/.config/yazi"
+        rm -rf "$HOME/.config/yazi"
+    fi
+    echo ""
+    echo "=== Yazi uninstall complete ==="
+    exit 0
+fi
 
 install_yazi_from_zip() {
     local label="$1"
-    $label "fetching latest yazi binary from GitHub"
-    ZIP_URL=$(curl -fsSL https://api.github.com/repos/sxyazi/yazi/releases/latest \
-        | grep '"browser_download_url"' \
-        | grep 'x86_64-unknown-linux-gnu\.zip"' \
-        | head -1 \
-        | cut -d'"' -f4)
-
-    if [[ -z "$ZIP_URL" ]]; then
-        echo "  ERROR: could not find yazi zip in latest release"
-        exit 1
-    fi
+    $label "downloading latest yazi binary from GitHub"
+    local ZIP_URL="https://github.com/sxyazi/yazi/releases/latest/download/yazi-x86_64-unknown-linux-gnu.zip"
 
     TMP_DIR=$(mktemp -d /tmp/yazi-XXXXXX)
     echo "  downloading: $ZIP_URL"
