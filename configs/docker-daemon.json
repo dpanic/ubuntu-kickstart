@@ -1,0 +1,9 @@
+{
+  "max-concurrent-downloads": 16,
+  "max-concurrent-uploads": 8,
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "1000m",
+    "max-file": "5"
+  }
+}

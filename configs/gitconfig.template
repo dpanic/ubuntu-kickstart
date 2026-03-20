@@ -1,0 +1,29 @@
+[user]
+	name = CHANGEME
+	email = CHANGEME
+
+[http]
+	postBuffer = 1048576000
+	maxRequestBuffer = 200M
+
+[https]
+	postBuffer = 524288000
+
+[core]
+	packedGitLimit = 512m
+	packedGitWindowSize = 512m
+	compression = 6
+
+[pack]
+	deltaCacheSize = 2047m
+	packSizeLimit = 2047m
+	windowMemory = 2047m
+
+[url "git@github.com:"]
+	insteadOf = https://github.com/
+
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true

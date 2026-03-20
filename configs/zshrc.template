@@ -1,0 +1,37 @@
+# Path to your oh-my-zsh installation.
+export ZSH="$HOME/.oh-my-zsh"
+
+# Starship handles the prompt -- leave ZSH_THEME empty
+ZSH_THEME=""
+
+# Auto-update oh-my-zsh daily without prompting
+export UPDATE_ZSH_DAYS=1
+zstyle ':omz:update' mode auto
+
+# Prevent oh-my-zsh from mangling pasted URLs
+DISABLE_MAGIC_FUNCTIONS=true
+
+# Let starship/tmux handle the terminal title
+DISABLE_AUTO_TITLE="true"
+
+# Plugins: git and fzf are built-in oh-my-zsh plugins,
+# zsh-autosuggestions and zsh-syntax-highlighting are git-cloned custom plugins
+plugins=(
+	fzf
+	git
+	zsh-autosuggestions
+	zsh-syntax-highlighting
+)
+
+source $ZSH/oh-my-zsh.sh
+
+# --- Shell integrations ---
+
+eval "$(starship init zsh)"
+eval "$(direnv hook zsh)"
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
