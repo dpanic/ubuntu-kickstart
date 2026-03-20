@@ -16,7 +16,8 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
 ALL_COMPONENTS=(zsh fzf starship direnv plugins nvm git)
-COMPONENTS=("$@")
+parse_update_flag "$@"
+COMPONENTS=("${_CLEAN_ARGS[@]}")
 if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
     COMPONENTS=("${ALL_COMPONENTS[@]}")
 fi
@@ -61,7 +62,12 @@ if want "zsh"; then
     fi
 
     if [[ -d "$HOME/.oh-my-zsh" ]]; then
-        skip "oh-my-zsh already installed at ~/.oh-my-zsh"
+        if [[ "$UPDATE" == true ]]; then
+            update "updating oh-my-zsh"
+            git_update_shallow "$HOME/.oh-my-zsh"
+        else
+            skip "oh-my-zsh already installed at ~/.oh-my-zsh"
+        fi
     else
         install "cloning oh-my-zsh"
         git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
@@ -73,7 +79,13 @@ if want "fzf"; then
     next "fzf"
 
     if [[ -d "$HOME/.fzf" ]]; then
-        skip "fzf already installed at ~/.fzf"
+        if [[ "$UPDATE" == true ]]; then
+            update "updating fzf"
+            git_update_shallow "$HOME/.fzf"
+            "$HOME/.fzf/install" --all --no-bash --no-fish
+        else
+            skip "fzf already installed at ~/.fzf"
+        fi
     else
         install "cloning fzf from git"
         git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
@@ -86,7 +98,12 @@ if want "starship"; then
     next "starship"
 
     if command -v starship &>/dev/null; then
-        skip "starship $(starship --version | head -1) already installed"
+        if [[ "$UPDATE" == true ]]; then
+            update "updating starship"
+            curl -fsSL https://starship.rs/install.sh | sh -s -- -y
+        else
+            skip "starship $(starship --version | head -1) already installed"
+        fi
     else
         install "installing starship"
         curl -fsSL https://starship.rs/install.sh | sh -s -- -y
@@ -120,7 +137,12 @@ if want "plugins"; then
     ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
     if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
-        skip "zsh-autosuggestions already installed"
+        if [[ "$UPDATE" == true ]]; then
+            update "updating zsh-autosuggestions"
+            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+        else
+            skip "zsh-autosuggestions already installed"
+        fi
     else
         install "cloning zsh-autosuggestions"
         git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git \
@@ -128,7 +150,12 @@ if want "plugins"; then
     fi
 
     if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
-        skip "zsh-syntax-highlighting already installed"
+        if [[ "$UPDATE" == true ]]; then
+            update "updating zsh-syntax-highlighting"
+            git_update_shallow "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+        else
+            skip "zsh-syntax-highlighting already installed"
+        fi
     else
         install "cloning zsh-syntax-highlighting"
         git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git \
@@ -141,7 +168,14 @@ if want "nvm"; then
     next "nvm"
 
     if [[ -d "$HOME/.nvm" ]]; then
-        skip "nvm already installed at ~/.nvm"
+        if [[ "$UPDATE" == true ]]; then
+            update "updating nvm to latest"
+            LATEST_NVM=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+            git -C "$HOME/.nvm" fetch origin --depth=1 --tags -q
+            git -C "$HOME/.nvm" checkout "$LATEST_NVM" 2>/dev/null
+        else
+            skip "nvm already installed at ~/.nvm"
+        fi
     else
         install "installing nvm"
         LATEST_NVM=$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
