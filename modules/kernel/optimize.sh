@@ -1,23 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 
-# Kernel & network optimization: sysctl, limits, sshd, scheduler, autotune
+# Kernel & network optimization: sysctl, limits, scheduler, autotune
 # Author: Dusan Panic <dpanic@gmail.com>
 # Source: https://github.com/dpanic/patchfiles
 # Safe to re-run -- idempotent
 #
 # Usage:
-#   ./kernel-optimize.sh                    # apply all optimizations
-#   ./kernel-optimize.sh sysctl limits      # apply only sysctl and limits
+#   ./optimize.sh                           # apply all optimizations
+#   ./optimize.sh sysctl limits scheduler   # apply only listed components
 #
 # Requires: sudo (all files are system-level)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-source "$SCRIPT_DIR/lib.sh"
+source "$REPO_DIR/lib.sh"
 
-ALL_COMPONENTS=(sysctl limits sshd scheduler autotune)
+ALL_COMPONENTS=(sysctl limits scheduler autotune)
 parse_update_flag "$@"
 COMPONENTS=("${_CLEAN_ARGS[@]}")
 if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
@@ -83,17 +83,6 @@ if [[ "$UNINSTALL" == true ]]; then
         remove "scheduler udev rule removed"
     fi
 
-    if want "sshd"; then
-        echo "[REVERT] sshd config..."
-        if [[ -f /etc/ssh/sshd_config.bak-kickstart ]]; then
-            sudo cp /etc/ssh/sshd_config.bak-kickstart /etc/ssh/sshd_config
-            sudo systemctl restart sshd 2>/dev/null || sudo systemctl restart ssh 2>/dev/null || true
-            remove "sshd_config restored from backup"
-        else
-            skip "no sshd backup found -- cannot revert"
-        fi
-    fi
-
     if want "limits"; then
         echo "[REVERT] limits..."
         if [[ -f /etc/security/limits.conf.bak-kickstart ]]; then
@@ -126,9 +115,9 @@ if want "sysctl"; then
     next "sysctl.conf"
 
     backup_file /etc/sysctl.conf
-    sudo cp "$REPO_DIR/configs/sysctl.conf" /etc/sysctl.conf
+    sudo cp "$SCRIPT_DIR/sysctl.conf" /etc/sysctl.conf
     sudo sysctl -p >/dev/null 2>&1 || echo "  warning: some sysctl params may require autotune/reboot"
-    echo "  done: /etc/sysctl.conf (from configs/sysctl.conf)"
+    echo "  done: /etc/sysctl.conf (from modules/kernel/sysctl.conf)"
 fi
 
 # ── limits ────────────────────────────────────────────────────────────────────
@@ -136,8 +125,8 @@ if want "limits"; then
     next "file descriptor & process limits"
 
     backup_file /etc/security/limits.conf
-    sudo cp "$REPO_DIR/configs/limits.conf" /etc/security/limits.conf
-    echo "  done: /etc/security/limits.conf (from configs/limits.conf)"
+    sudo cp "$SCRIPT_DIR/limits.conf" /etc/security/limits.conf
+    echo "  done: /etc/security/limits.conf (from modules/kernel/limits.conf)"
 
     # PAM session modules -- append if missing
     append_if_missing /etc/pam.d/common-session \
@@ -164,41 +153,27 @@ DefaultLimitNOFILE=2097152"
     echo "  done: limits + PAM + systemd"
 fi
 
-# ── sshd ──────────────────────────────────────────────────────────────────────
-if want "sshd"; then
-    next "sshd hardening"
-
-    if [[ ! -f /etc/ssh/sshd_config ]]; then
-        skip "sshd not installed"
-    else
-        backup_file /etc/ssh/sshd_config
-        sudo cp "$REPO_DIR/configs/sshd_config" /etc/ssh/sshd_config
-        sudo systemctl restart sshd 2>/dev/null || sudo systemctl restart ssh 2>/dev/null || true
-        echo "  done: /etc/ssh/sshd_config (from configs/sshd_config, password auth DISABLED)"
-    fi
-fi
-
 # ── scheduler ─────────────────────────────────────────────────────────────────
 if want "scheduler"; then
     next "I/O scheduler (none -- best for SSD/NVMe)"
 
-    sudo cp "$REPO_DIR/configs/60-scheduler.rules" /etc/udev/rules.d/60-scheduler.rules
+    sudo cp "$SCRIPT_DIR/60-scheduler.rules" /etc/udev/rules.d/60-scheduler.rules
     sudo udevadm control --reload 2>/dev/null || true
     sudo udevadm trigger 2>/dev/null || true
-    echo "  done: /etc/udev/rules.d/60-scheduler.rules (from configs/60-scheduler.rules)"
+    echo "  done: /etc/udev/rules.d/60-scheduler.rules (from modules/kernel/60-scheduler.rules)"
 fi
 
 # ── autotune ──────────────────────────────────────────────────────────────────
 if want "autotune"; then
     next "RAM-based autotune (conntrack, tw_buckets, file-max)"
 
-    sudo cp "$REPO_DIR/configs/autotune.sh" /usr/bin/autotune.sh
+    sudo cp "$SCRIPT_DIR/autotune.sh" /usr/bin/autotune.sh
     sudo chmod +x /usr/bin/autotune.sh
 
-    sudo cp "$REPO_DIR/configs/autotune.service" /etc/systemd/system/autotune.service
+    sudo cp "$SCRIPT_DIR/autotune.service" /etc/systemd/system/autotune.service
     sudo systemctl daemon-reload
     sudo systemctl enable autotune.service 2>/dev/null || true
-    echo "  done: /usr/bin/autotune.sh + autotune.service (from configs/)"
+    echo "  done: /usr/bin/autotune.sh + autotune.service (from modules/kernel/)"
 fi
 
 echo ""

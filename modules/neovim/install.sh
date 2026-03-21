@@ -6,8 +6,8 @@ set -euo pipefail
 # Safe to re-run -- idempotent
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$SCRIPT_DIR/lib.sh"
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$REPO_DIR/lib.sh"
 
 NVIM_INSTALL_DIR="/opt/nvim-linux-x86_64"
 

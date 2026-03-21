@@ -45,10 +45,11 @@ bash main.sh
 
 | Script | Description |
 |--------|-------------|
-| `gnome-optimize.sh` | Disable GNOME animations, sounds, hot corners, non-essential extensions |
-| `nautilus-optimize.sh` | Restrict Tracker indexing, limit thumbnails, clear cache |
-| `apparmor-setup.sh` | AppArmor learning mode + Slack reminder after 7 days |
-| `kernel-optimize.sh` | Kernel sysctl tuning, file descriptor limits, sshd hardening, I/O scheduler, RAM-based autotune |
+| `modules/gnome/` | Disable GNOME animations, sounds, hot corners, non-essential extensions |
+| `modules/nautilus/` | Restrict Tracker indexing, limit thumbnails, clear cache |
+| `modules/apparmor/` | AppArmor learning mode + Slack reminder after 7 days |
+| `modules/kernel/` | Kernel sysctl tuning, file descriptor limits, I/O scheduler, RAM-based autotune |
+| `modules/sshd/` | OpenSSH server hardening (`sshd_config`; disables password auth) |
 
 ### 🐚 Shell Environment
 
@@ -60,13 +61,13 @@ bash main.sh
 | **direnv** | Per-directory environment variables |
 | **zsh plugins** | autosuggestions + syntax-highlighting |
 | **nvm** | Node.js version manager |
+| **byobu + tmux** | Terminal multiplexer with mouse support *(Linux)* |
 | **git config** | LFS, SSH-over-HTTPS, gitconfig template |
 
 ### 🖥️ Terminal & Dev Tools
 
 | Tool | Description |
 |------|-------------|
-| **byobu + tmux** | Terminal multiplexer with mouse support *(Linux)* |
 | **ncdu** | Interactive disk usage analyzer |
 | **Yazi** | Blazing-fast terminal file manager |
 | **Docker** | Engine + Compose + BuildX + daemon config |
@@ -113,7 +114,7 @@ The TUI shows real-time status for each tool:
 | 🐧 | **Ubuntu 24.04** with GNOME 46 |
 | 🍎 | **macOS** with Homebrew (auto-installed if missing) |
 | 🌐 | Internet connection (downloads from GitHub, go.dev, APT repos) |
-| 🔐 | `apparmor-setup.sh` needs `sudo` and a Slack webhook URL |
+| 🔐 | `modules/apparmor/setup.sh` needs `sudo` and a Slack webhook URL |
 
 ---
 

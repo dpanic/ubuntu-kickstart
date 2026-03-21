@@ -10,9 +10,9 @@ set -euo pipefail
 #   ./install-browsers.sh chrome signal  # install only chrome and signal
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-source "$SCRIPT_DIR/lib.sh"
+source "$REPO_DIR/lib.sh"
 
 ALL_COMPONENTS=(chrome brave signal)
 parse_update_flag "$@"

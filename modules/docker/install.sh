@@ -7,8 +7,8 @@ set -euo pipefail
 # Safe to re-run -- idempotent
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-source "$SCRIPT_DIR/lib.sh"
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$REPO_DIR/lib.sh"
 
 parse_update_flag "$@"
 
@@ -100,11 +100,11 @@ $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
     DAEMON_CFG="/etc/docker/daemon.json"
     if [[ -f "$DAEMON_CFG" ]]; then
         skip "$DAEMON_CFG already exists (not overwriting)"
-        echo "  Review template: $REPO_DIR/configs/docker-daemon.json"
+        echo "  Review template: $SCRIPT_DIR/daemon.json"
     else
         install "deploying optimized daemon.json"
         sudo mkdir -p /etc/docker
-        sudo cp "$REPO_DIR/configs/docker-daemon.json" "$DAEMON_CFG"
+        sudo cp "$SCRIPT_DIR/daemon.json" "$DAEMON_CFG"
         sudo systemctl restart docker 2>/dev/null || true
     fi
 

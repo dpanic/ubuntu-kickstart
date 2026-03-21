@@ -1,21 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install shell tooling: zsh, oh-my-zsh, fzf, starship, direnv, plugins, nvm
+# Install shell tooling: zsh, oh-my-zsh, fzf, starship, direnv, plugins, nvm, byobu, git
 # Author: Dusan Panic <dpanic@gmail.com>
 # Replicates a full zsh dev environment from scratch
 # Safe to re-run -- idempotent (skips already-installed components)
 #
 # Usage:
 #   ./install-shell-tools.sh              # install everything
-#   ./install-shell-tools.sh fzf starship # install only fzf and starship
+#   ./install-shell-tools.sh fzf byobu    # install only listed components
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-source "$SCRIPT_DIR/lib.sh"
+source "$REPO_DIR/lib.sh"
 
-ALL_COMPONENTS=(zsh fzf starship direnv plugins nvm git)
+ALL_COMPONENTS=(zsh fzf starship direnv plugins nvm byobu git)
 parse_update_flag "$@"
 COMPONENTS=("${_CLEAN_ARGS[@]}")
 if [[ ${#COMPONENTS[@]} -eq 0 ]]; then
@@ -108,6 +108,17 @@ if [[ "$UNINSTALL" == true ]]; then
         fi
     fi
 
+    if want "byobu"; then
+        echo "[REMOVE] byobu..."
+        if command -v byobu &>/dev/null; then
+            remove "removing byobu"
+            if is_linux; then sudo apt-get remove -y byobu 2>/dev/null || true; fi
+            [[ -d "$HOME/.byobu" ]] && { remove "removing ~/.byobu"; rm -rf "$HOME/.byobu"; }
+        else
+            skip "byobu not installed"
+        fi
+    fi
+
     if want "zsh"; then
         echo "[REMOVE] oh-my-zsh..."
         if [[ -d "$HOME/.oh-my-zsh" ]]; then
@@ -197,7 +208,7 @@ if want "starship"; then
         skip "~/.config/starship.toml already exists (not overwriting)"
     else
         install "copying starship.toml"
-        cp "$REPO_DIR/configs/starship.toml" "$HOME/.config/starship.toml"
+        cp "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
     fi
 fi
 
@@ -268,16 +279,92 @@ if want "nvm"; then
     fi
 fi
 
+# ── byobu + tmux (Linux: byobu + configs; macOS: tmux only) ───────────────────
+if want "byobu"; then
+    next "byobu + tmux"
+
+    if is_linux; then
+        PKGS=()
+        if command -v byobu &>/dev/null; then
+            skip "byobu already installed"
+        else
+            PKGS+=(byobu)
+        fi
+
+        if command -v tmux &>/dev/null; then
+            skip "tmux $(tmux -V) already installed"
+        else
+            PKGS+=(tmux)
+        fi
+
+        if [[ ${#PKGS[@]} -gt 0 ]]; then
+            install "installing ${PKGS[*]}"
+            pkg_install "${PKGS[@]}"
+        fi
+
+        BYOBU_DIR="$HOME/.byobu"
+        BYOBU_CONFIGS=(".tmux.conf" ".ctrl-a-workaround" "backend" "color.tmux" "datetime.tmux" "keybindings" "keybindings.tmux" "status")
+
+        if [[ -d "$BYOBU_DIR" ]]; then
+            local_changed=0
+            for cfg in "${BYOBU_CONFIGS[@]}"; do
+                src="$SCRIPT_DIR/byobu/$cfg"
+                dst="$BYOBU_DIR/$cfg"
+                if [[ ! -f "$src" ]]; then
+                    continue
+                fi
+                if [[ -f "$dst" ]] && diff -q "$src" "$dst" &>/dev/null; then
+                    continue
+                fi
+                if [[ -f "$dst" ]]; then
+                    install "updating $cfg (old backed up to ${cfg}.bak)"
+                    cp "$dst" "${dst}.bak"
+                else
+                    install "copying $cfg"
+                fi
+                cp "$src" "$dst"
+                local_changed=$((local_changed + 1))
+            done
+            if [[ $local_changed -eq 0 ]]; then
+                skip "byobu config already up to date"
+            fi
+        else
+            install "creating ~/.byobu/ with configs"
+            mkdir -p "$BYOBU_DIR"
+            for cfg in "${BYOBU_CONFIGS[@]}"; do
+                src="$SCRIPT_DIR/byobu/$cfg"
+                [[ -f "$src" ]] && cp "$src" "$BYOBU_DIR/$cfg"
+            done
+        fi
+
+        if [[ -f "$BYOBU_DIR/backend" ]] && grep -q "tmux" "$BYOBU_DIR/backend"; then
+            skip "byobu backend already set to tmux"
+        else
+            install "setting byobu backend to tmux"
+            echo "BYOBU_BACKEND=tmux" > "$BYOBU_DIR/backend"
+        fi
+    fi
+
+    if is_macos; then
+        if command -v tmux &>/dev/null; then
+            skip "tmux $(tmux -V) already installed"
+        else
+            install "installing tmux via brew"
+            pkg_install tmux
+        fi
+    fi
+fi
+
 # ── git config ────────────────────────────────────────────────────────────────
 if want "git"; then
     next "git config"
 
     if [[ -f "$HOME/.gitconfig" ]]; then
         skip "~/.gitconfig already exists (not overwriting)"
-        echo "  Review template: $REPO_DIR/configs/gitconfig.template"
+        echo "  Review template: $SCRIPT_DIR/gitconfig.template"
     else
         install "copying gitconfig.template -> ~/.gitconfig"
-        cp "$REPO_DIR/configs/gitconfig.template" "$HOME/.gitconfig"
+        cp "$SCRIPT_DIR/gitconfig.template" "$HOME/.gitconfig"
     fi
 
     if [[ -n "${KICKSTART_USER_NAME:-}" ]]; then
@@ -313,7 +400,7 @@ if want "zsh"; then
         skip "~/.zshrc already exists (not overwriting)"
         echo ""
         echo "  To see what the template includes, run:"
-        echo "    diff ~/.zshrc $REPO_DIR/configs/zshrc.template"
+        echo "    diff ~/.zshrc $SCRIPT_DIR/zshrc.template"
         echo ""
         echo "  Key lines to ensure are in your .zshrc:"
         echo "    plugins=(fzf git zsh-autosuggestions zsh-syntax-highlighting)"
@@ -322,7 +409,7 @@ if want "zsh"; then
         echo '    [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
     else
         install "copying zshrc.template -> ~/.zshrc"
-        cp "$REPO_DIR/configs/zshrc.template" "$HOME/.zshrc"
+        cp "$SCRIPT_DIR/zshrc.template" "$HOME/.zshrc"
     fi
 fi
 
@@ -330,4 +417,5 @@ echo ""
 echo "=== Shell tools setup complete ==="
 echo "  Installed: ${COMPONENTS[*]}"
 echo ""
+want "byobu" && echo "  byobu  -- launch terminal multiplexer"
 echo "Start a new terminal or run: exec zsh"

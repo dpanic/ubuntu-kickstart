@@ -9,11 +9,11 @@ set -euo pipefail
 # Supports Ubuntu (apt) and macOS (brew)
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_DIR="$REPO_DIR/scripts"
+MODULES_DIR="$REPO_DIR/modules"
 LOG_DIR="$REPO_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-source "$SCRIPTS_DIR/lib.sh"
+source "$REPO_DIR/lib.sh"
 
 # ─── Bootstrap gum ───────────────────────────────────────────────────────────
 
@@ -88,55 +88,56 @@ show_banner() {
 
 ALL_ITEMS=(
     # ── Optimizations ──
-    "linux|gnome-optimize.sh||GNOME Optimize -- disable animations, sounds, hot corners"
-    "linux|nautilus-optimize.sh||Nautilus Optimize -- restrict Tracker, limit thumbnails"
-    "linux|apparmor-setup.sh||AppArmor Setup -- learning mode with Slack reminder"
-    "linux|kernel-optimize.sh|sysctl|Kernel ▸ sysctl.conf (network, memory, conntrack tuning)"
-    "linux|kernel-optimize.sh|limits|Kernel ▸ file descriptor & process limits"
-    "linux|kernel-optimize.sh|sshd|Kernel ▸ sshd hardening (disables password auth)"
-    "linux|kernel-optimize.sh|scheduler|Kernel ▸ I/O scheduler (none -- SSD/NVMe)"
-    "linux|kernel-optimize.sh|autotune|Kernel ▸ RAM-based autotune service"
+    "linux|gnome/optimize.sh||GNOME Optimize -- disable animations, sounds, hot corners"
+    "linux|nautilus/optimize.sh||Nautilus Optimize -- restrict Tracker, limit thumbnails"
+    "linux|apparmor/setup.sh||AppArmor Setup -- learning mode with Slack reminder"
+    "linux|kernel/optimize.sh|sysctl|Kernel ▸ sysctl.conf (network, memory, conntrack tuning)"
+    "linux|kernel/optimize.sh|limits|Kernel ▸ file descriptor & process limits"
+    "linux|kernel/optimize.sh|scheduler|Kernel ▸ I/O scheduler (none -- SSD/NVMe)"
+    "linux|kernel/optimize.sh|autotune|Kernel ▸ RAM-based autotune service"
+    "linux|sshd/setup.sh||SSH ▸ sshd hardening (disables password auth)"
     # ── Installations ──
     "all|---||"
     "all|---||── Installations ─────────────────────────────"
-    "all|install-shell-tools.sh|zsh|Shell ▸ zsh + oh-my-zsh"
-    "all|install-shell-tools.sh|fzf|Shell ▸ fzf (fuzzy finder)"
-    "all|install-shell-tools.sh|starship|Shell ▸ starship prompt"
-    "all|install-shell-tools.sh|direnv|Shell ▸ direnv"
-    "all|install-shell-tools.sh|plugins|Shell ▸ zsh plugins (autosuggestions, syntax-highlighting)"
-    "all|install-shell-tools.sh|nvm|Shell ▸ nvm (Node version manager)"
-    "all|install-shell-tools.sh|git|Shell ▸ git config (LFS, SSH-over-HTTPS)"
+    "all|shell/install.sh|zsh|Shell ▸ zsh + oh-my-zsh"
+    "all|shell/install.sh|fzf|Shell ▸ fzf (fuzzy finder)"
+    "all|shell/install.sh|starship|Shell ▸ starship prompt"
+    "all|shell/install.sh|direnv|Shell ▸ direnv"
+    "all|shell/install.sh|plugins|Shell ▸ zsh plugins (autosuggestions, syntax-highlighting)"
+    "all|shell/install.sh|nvm|Shell ▸ nvm (Node version manager)"
+    "all|shell/install.sh|git|Shell ▸ git config (LFS, SSH-over-HTTPS)"
+    "linux|shell/install.sh|byobu|Shell ▸ byobu + tmux"
     "all|---||"
-    "linux|install-terminal-tools.sh|byobu|Terminal ▸ byobu + tmux"
-    "all|install-terminal-tools.sh|ncdu|Terminal ▸ ncdu (disk analyzer)"
-    "all|install-yazi.sh||Yazi -- terminal file manager"
+    "all|terminal/install.sh|ncdu|Terminal ▸ ncdu (disk analyzer)"
+    "all|yazi/install.sh||Yazi -- terminal file manager"
     "all|---||"
-    "all|install-docker.sh||Docker -- engine, compose, buildx, daemon config"
-    "all|install-go.sh||Go -- programming language from go.dev"
-    "all|install-neovim.sh||Neovim + LazyVim -- editor with IDE features"
+    "all|docker/install.sh||Docker -- engine, compose, buildx, daemon config"
+    "all|go/install.sh||Go -- programming language from go.dev"
+    "all|neovim/install.sh||Neovim + LazyVim -- editor with IDE features"
     "all|---||"
-    "linux|install-browsers.sh|chrome|Browser ▸ Google Chrome"
-    "linux|install-browsers.sh|brave|Browser ▸ Brave"
-    "linux|install-browsers.sh|signal|App ▸ Signal Desktop"
-    "linux|install-peazip.sh||PeaZip -- archive manager (200+ formats)"
+    "linux|browsers/install.sh|chrome|Browser ▸ Google Chrome"
+    "linux|browsers/install.sh|brave|Browser ▸ Brave"
+    "linux|browsers/install.sh|signal|App ▸ Signal Desktop"
+    "linux|peazip/install.sh||PeaZip -- archive manager (200+ formats)"
 )
 
 check_installed() {
     local script="$1" component="$2"
     case "$script" in
         ---) return 1 ;;
-        gnome-optimize.sh|nautilus-optimize.sh|apparmor-setup.sh)
+        gnome/optimize.sh|nautilus/optimize.sh|apparmor/setup.sh)
             return 1 ;;
-        kernel-optimize.sh)
+        kernel/optimize.sh)
             case "$component" in
                 sysctl)    [[ -f /etc/sysctl.conf ]] && grep -q "tcp_congestion_control = bbr" /etc/sysctl.conf 2>/dev/null ;;
                 limits)    [[ -f /etc/security/limits.conf ]] && grep -q "KICKSTART" /etc/security/limits.conf 2>/dev/null ;;
-                sshd)      [[ -f /etc/ssh/sshd_config ]] && grep -q "KICKSTART" /etc/ssh/sshd_config 2>/dev/null ;;
                 scheduler) [[ -f /etc/udev/rules.d/60-scheduler.rules ]] ;;
                 autotune)  [[ -f /usr/bin/autotune.sh ]] && systemctl is-enabled autotune.service &>/dev/null ;;
                 *)         return 1 ;;
             esac ;;
-        install-shell-tools.sh)
+        sshd/setup.sh)
+            [[ -f /etc/ssh/sshd_config ]] && grep -q "KICKSTART" /etc/ssh/sshd_config 2>/dev/null ;;
+        shell/install.sh)
             case "$component" in
                 zsh)     [[ -d "$HOME/.oh-my-zsh" ]] && command -v zsh &>/dev/null ;;
                 fzf)     [[ -d "$HOME/.fzf" ]] ;;
@@ -144,27 +145,27 @@ check_installed() {
                 direnv)  command -v direnv &>/dev/null ;;
                 plugins) [[ -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" ]] ;;
                 nvm)     [[ -d "$HOME/.nvm" ]] ;;
+                byobu)   command -v byobu &>/dev/null ;;
                 git)     [[ -f "$HOME/.gitconfig" ]] ;;
                 *)       return 1 ;;
             esac ;;
-        install-terminal-tools.sh)
+        terminal/install.sh)
             case "$component" in
-                byobu) command -v byobu &>/dev/null ;;
                 ncdu)  command -v ncdu &>/dev/null ;;
                 *)     return 1 ;;
             esac ;;
-        install-docker.sh)  command -v docker &>/dev/null ;;
-        install-go.sh)      command -v go &>/dev/null || [[ -x /usr/local/go/bin/go ]] ;;
-        install-yazi.sh)    command -v yazi &>/dev/null ;;
-        install-neovim.sh)  command -v nvim &>/dev/null ;;
-        install-browsers.sh)
+        docker/install.sh)   command -v docker &>/dev/null ;;
+        go/install.sh)       command -v go &>/dev/null || [[ -x /usr/local/go/bin/go ]] ;;
+        yazi/install.sh)     command -v yazi &>/dev/null ;;
+        neovim/install.sh)   command -v nvim &>/dev/null ;;
+        browsers/install.sh)
             case "$component" in
                 chrome) command -v google-chrome &>/dev/null || command -v google-chrome-stable &>/dev/null ;;
                 brave)  command -v brave-browser &>/dev/null ;;
                 signal) command -v signal-desktop &>/dev/null ;;
                 *)      return 1 ;;
             esac ;;
-        install-peazip.sh)  command -v peazip &>/dev/null || (dpkg -l peazip 2>/dev/null | grep -q '^ii') ;;
+        peazip/install.sh)   command -v peazip &>/dev/null || (dpkg -l peazip 2>/dev/null | grep -q '^ii') ;;
         *) return 1 ;;
     esac
 }
@@ -291,15 +292,15 @@ check_updates() {
 _get_update_status() {
     local script="$1" component="$2"
     case "$script" in
-        install-shell-tools.sh) echo "${UPDATE_AVAIL[$component]:-}" ;;
-        install-go.sh)          echo "${UPDATE_AVAIL[go]:-}" ;;
-        install-yazi.sh)        echo "${UPDATE_AVAIL[yazi]:-}" ;;
-        install-neovim.sh)
+        shell/install.sh)    echo "${UPDATE_AVAIL[$component]:-}" ;;
+        go/install.sh)       echo "${UPDATE_AVAIL[go]:-}" ;;
+        yazi/install.sh)     echo "${UPDATE_AVAIL[yazi]:-}" ;;
+        neovim/install.sh)
             local ns="${UPDATE_AVAIL[neovim]:-}" ls="${UPDATE_AVAIL[lazygit]:-}"
             if [[ "$ns" == "update" || "$ls" == "update" ]]; then echo "update"
             elif [[ -n "$ns" || -n "$ls" ]]; then echo "latest"
             fi ;;
-        install-peazip.sh)      echo "${UPDATE_AVAIL[peazip]:-}" ;;
+        peazip/install.sh)   echo "${UPDATE_AVAIL[peazip]:-}" ;;
         *)                      echo "" ;;
     esac
 }
@@ -388,9 +389,9 @@ collect_user_info() {
 
     for script in "${SCRIPT_ORDER[@]}"; do
         case "$script" in
-            install-shell-tools.sh|install-docker.sh|apparmor-setup.sh)
+            shell/install.sh|docker/install.sh|apparmor/setup.sh)
                 local comps="${SCRIPT_COMPONENTS[$script]}"
-                if [[ "$script" == "install-shell-tools.sh" && -n "$comps" && "$comps" != *git* ]]; then
+                if [[ "$script" == "shell/install.sh" && -n "$comps" && "$comps" != *git* ]]; then
                     continue
                 fi
                 needs_info=true
@@ -443,10 +444,11 @@ run_scripts() {
         local components="${SCRIPT_COMPONENTS[$script]}"
         components="${components% }"   # trim trailing space
 
-        local script_path="$SCRIPTS_DIR/$script"
+        local script_path="$MODULES_DIR/$script"
         [[ ! -x "$script_path" ]] && chmod +x "$script_path"
 
-        local logfile="$LOG_DIR/${script%.sh}-$(date +%Y%m%d-%H%M%S).log"
+        local logname="${script//\//-}"
+        local logfile="$LOG_DIR/${logname%.sh}-$(date +%Y%m%d-%H%M%S).log"
 
         echo ""
         gum style --foreground "$ACCENT2" --bold "━━━ Running: $script ━━━"
@@ -456,7 +458,7 @@ run_scripts() {
         echo ""
 
         local rc=0
-        if [[ "$script" == "apparmor-setup.sh" ]]; then
+        if [[ "$script" == "apparmor/setup.sh" ]]; then
             if [[ "$ACTION_FLAG" == "--uninstall" ]]; then
                 sudo bash "$script_path" --uninstall 2>&1 | tee "$logfile" || rc=${PIPESTATUS[0]}
             else
